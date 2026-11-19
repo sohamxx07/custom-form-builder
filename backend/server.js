@@ -5,6 +5,8 @@ require('dotenv').config({ path: path.resolve(__dirname, '.env') });
 const app = require('./src/app');
 const sequelize = require('./src/config/db');
 
+const runMigration = require('./src/config/migrate');
+
 const PORT = process.env.PORT || 5000;
 
 async function startServer() {
@@ -12,6 +14,9 @@ async function startServer() {
     // Authenticate and test the database connection
     await sequelize.authenticate();
     console.log('[Database] SQLite connection established successfully.');
+
+    // Ensure database columns exist
+    await runMigration();
 
     // Create database tables if they do not exist
     await sequelize.sync();

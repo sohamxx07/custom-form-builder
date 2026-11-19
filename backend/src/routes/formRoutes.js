@@ -16,4 +16,7 @@ router.delete('/:id', formController.deleteForm);
 // Test submission endpoint
 router.post('/:id/test-submit', formController.testSubmit);
 
+// Publish form endpoint
+router.post('/:id/publish', formController.publishForm);
+
 module.exports = router;

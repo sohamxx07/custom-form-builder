@@ -16,6 +16,12 @@ const sequelize = new Sequelize({
   dialect: "sqlite",
   storage: resolvedDbPath,
   logging: false,
+  pool: {
+    max: 1,
+    min: 1,
+    acquire: 30000,
+    idle: 10000,
+  },
 });
 
 module.exports = sequelize;

@@ -1,6 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import api from '../api/axios';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+} from '@/components/ui/card';
+import { ArrowLeft, FileText, Sparkles, Save, ArrowRight } from 'lucide-react';
 
 const FormEditor = () => {
   const { id } = useParams();
@@ -48,7 +61,7 @@ const FormEditor = () => {
       } else {
         const response = await api.post('/forms', { title, description });
         const createdForm = response.data.data;
-        // Promptly redirect directly into the field builder for smooth UX
+        // Promptly redirect directly into the field builder for smooth SaaS flow
         navigate(`/forms/${createdForm.id}/builder`);
       }
     } catch (err) {
@@ -60,82 +73,113 @@ const FormEditor = () => {
 
   if (fetching) {
     return (
-      <div className="flex justify-center items-center py-24">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+      <div className="min-h-[70vh] flex flex-col justify-center items-center px-4">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-3" />
+        <p className="text-gray-500 text-sm font-medium">Loading form info...</p>
       </div>
     );
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-10">
-      <div className="mb-6">
-        <Link to="/dashboard" className="text-sm text-blue-600 hover:text-blue-700 font-medium">
-          &larr; Back to Dashboard
+    <div className="min-h-screen bg-slate-50/60 py-10 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-2xl mx-auto space-y-6">
+        {/* Navigation Breadcrumb */}
+        <Link
+          to="/dashboard"
+          className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4 mr-1.5" />
+          Back to Dashboard
         </Link>
-      </div>
 
-      <div className="bg-white p-8 rounded-xl border border-gray-200 shadow-sm">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">
-            {isEditing ? 'Edit Form Information' : 'Create New Form'}
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            {isEditing
-              ? 'Update the title and general description of your form.'
-              : 'Provide basic details to start building your custom form.'}
-          </p>
-        </div>
+        <Card className="border-border/80 shadow-md">
+          <CardHeader className="p-6 sm:p-8 border-b border-gray-100">
+            <div className="flex items-center space-x-3 mb-2">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600 border border-blue-100">
+                <FileText className="h-5 w-5" />
+              </div>
+              <CardTitle className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900">
+                {isEditing ? 'Edit Form Information' : 'Create New Custom Form'}
+              </CardTitle>
+            </div>
+            <CardDescription className="text-sm text-gray-500">
+              {isEditing
+                ? 'Update the title and general description for this form workspace.'
+                : 'Enter basic details to initialize your form workspace, then proceed to configure fields.'}
+            </CardDescription>
+          </CardHeader>
 
-        {error && (
-          <div className="mb-5 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
-            {error}
-          </div>
-        )}
+          <CardContent className="p-6 sm:p-8">
+            {error && (
+              <div className="mb-6 p-3.5 bg-red-50 border border-red-200 text-red-700 text-xs font-medium rounded-xl flex items-start space-x-2">
+                <span>⚠️</span>
+                <span>{error}</span>
+              </div>
+            )}
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Form Title <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Customer Satisfaction Survey"
-              required
-              className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-            />
-          </div>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="form-title" className="text-sm font-semibold text-gray-800">
+                  Form Title <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="form-title"
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="e.g. Employee Onboarding Questionnaire"
+                  required
+                  className="h-10 rounded-xl text-sm"
+                />
+                <p className="text-xs text-gray-400">
+                  A recognizable, clear title shown to respondents and on your dashboard.
+                </p>
+              </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Description (Optional)
-            </label>
-            <textarea
-              rows={4}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Tell respondents the purpose of this form..."
-              className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-            />
-          </div>
+              <div className="space-y-2">
+                <Label htmlFor="form-desc" className="text-sm font-semibold text-gray-800">
+                  Form Description (Optional)
+                </Label>
+                <Textarea
+                  id="form-desc"
+                  rows={4}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Provide instructions, context, or guidelines for respondents filling out this form..."
+                  className="rounded-xl text-sm"
+                />
+              </div>
 
-          <div className="flex items-center justify-end space-x-3 pt-4 border-t border-gray-100">
-            <Link
-              to="/dashboard"
-              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm font-medium transition"
-            >
-              Cancel
-            </Link>
-            <button
-              type="submit"
-              disabled={loading}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-5 py-2 rounded-lg shadow-sm text-sm transition disabled:opacity-50"
-            >
-              {loading ? 'Saving...' : isEditing ? 'Save Changes' : 'Create & Add Fields'}
-            </button>
-          </div>
-        </form>
+              <div className="pt-4 flex items-center justify-end space-x-3 border-t border-gray-100">
+                <Link to="/dashboard">
+                  <Button variant="outline" type="button" size="sm" className="rounded-xl">
+                    Cancel
+                  </Button>
+                </Link>
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  size="sm"
+                  className="rounded-xl font-semibold px-5 shadow-sm"
+                >
+                  {loading ? (
+                    'Saving...'
+                  ) : isEditing ? (
+                    <>
+                      <Save className="h-4 w-4 mr-1.5" />
+                      Save Changes
+                    </>
+                  ) : (
+                    <>
+                      Continue to Field Builder
+                      <ArrowRight className="h-4 w-4 ml-1.5" />
+                    </>
+                  )}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

@@ -26,6 +26,20 @@ const Form = sequelize.define('Form', {
       key: 'id',
     },
   },
+  status: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    defaultValue: 'draft',
+  },
+  slug: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    unique: true,
+  },
+  publishedAt: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
 }, {
   tableName: 'forms',
   timestamps: true,
@@ -34,6 +48,7 @@ const Form = sequelize.define('Form', {
 Form.associate = (models) => {
   Form.belongsTo(models.User, { foreignKey: 'userId', as: 'user' });
   Form.hasMany(models.FormField, { foreignKey: 'formId', as: 'fields', onDelete: 'CASCADE' });
+  Form.hasMany(models.FormResponse, { foreignKey: 'formId', as: 'responses', onDelete: 'CASCADE' });
 };
 
 module.exports = Form;

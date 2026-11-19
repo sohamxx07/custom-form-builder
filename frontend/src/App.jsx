@@ -9,6 +9,8 @@ import Dashboard from './pages/Dashboard';
 import FormEditor from './pages/FormEditor';
 import FormBuilder from './pages/FormBuilder';
 import FormPreview from './pages/FormPreview';
+import PublicForm from './pages/PublicForm';
+import Responses from './pages/Responses';
 
 function App() {
   return (
@@ -21,6 +23,9 @@ function App() {
               {/* Public Authentication Routes */}
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+
+              {/* Public Form Route - Unauthenticated for Respondents */}
+              <Route path="/public/forms/:slug" element={<PublicForm />} />
 
               {/* Protected Creator Routes */}
               <Route
@@ -60,6 +65,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <FormPreview />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/forms/:formId/responses"
+                element={
+                  <ProtectedRoute>
+                    <Responses />
                   </ProtectedRoute>
                 }
               />

@@ -1,16 +1,64 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../api/axios';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+} from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  ArrowLeft,
+  Plus,
+  Trash2,
+  Edit,
+  Eye,
+  Rocket,
+  BarChart3,
+  Copy,
+  Check,
+  ExternalLink,
+  Layers,
+  Settings,
+  HelpCircle,
+  FileUp,
+  Type,
+  Mail,
+  Hash,
+  AlignLeft,
+  ListFilter,
+  CheckSquare,
+  Radio,
+  FileCheck,
+  GripVertical,
+} from 'lucide-react';
 
 const SUPPORTED_FIELD_TYPES = [
-  { value: 'text', label: 'Single-line Text' },
-  { value: 'email', label: 'Email Address' },
-  { value: 'number', label: 'Number' },
-  { value: 'textarea', label: 'Multi-line Paragraph (Textarea)' },
-  { value: 'select', label: 'Dropdown' },
-  { value: 'radio', label: 'Multiple Choice (Radio)' },
-  { value: 'checkbox', label: 'Checkboxes' },
-  { value: 'file', label: 'File Upload' },
+  { value: 'text', label: 'Single-line Text', icon: Type },
+  { value: 'email', label: 'Email Address', icon: Mail },
+  { value: 'number', label: 'Number', icon: Hash },
+  { value: 'textarea', label: 'Multi-line Paragraph (Textarea)', icon: AlignLeft },
+  { value: 'select', label: 'Dropdown Select', icon: ListFilter },
+  { value: 'radio', label: 'Multiple Choice (Radio)', icon: Radio },
+  { value: 'checkbox', label: 'Checkboxes (Multi-select)', icon: CheckSquare },
+  { value: 'file', label: 'File Upload', icon: FileUp },
 ];
 
 const CHOICE_TYPES = ['select', 'radio', 'checkbox'];
@@ -52,6 +100,15 @@ const FormBuilder = () => {
   const [submittingField, setSubmittingField] = useState(false);
   const [fieldError, setFieldError] = useState('');
 
+  // Publishing State
+  const [publishing, setPublishing] = useState(false);
+  const [publishSuccess, setPublishSuccess] = useState('');
+  const [publishError, setPublishError] = useState('');
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  // Delete Field Modal
+  const [fieldToDelete, setFieldToDelete] = useState(null);
+
   // Load Form and Fields
   const loadFormData = async () => {
     setLoading(true);
@@ -75,6 +132,40 @@ const FormBuilder = () => {
   useEffect(() => {
     loadFormData();
   }, [formId]);
+
+  // Handle Form Publishing
+  const handlePublishForm = async () => {
+    if (fields.length === 0) {
+      setPublishError('Cannot publish an empty form. Please add at least one field first.');
+      return;
+    }
+
+    setPublishing(true);
+    setPublishError('');
+    setPublishSuccess('');
+
+    try {
+      const response = await api.post(`/forms/${formId}/publish`);
+      setForm(response.data.data);
+      setPublishSuccess(response.data.message || 'Form published successfully!');
+    } catch (err) {
+      setPublishError(err.response?.data?.message || 'Failed to publish form. Please try again.');
+    } finally {
+      setPublishing(false);
+    }
+  };
+
+  // Copy public link
+  const copyPublicLink = () => {
+    if (!form?.slug) return;
+    const publicUrl = `${window.location.origin}/public/forms/${form.slug}`;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(publicUrl).then(() => {
+        setCopiedLink(true);
+        setTimeout(() => setCopiedLink(false), 2500);
+      });
+    }
+  };
 
   // Reset form builder editor fields
   const resetFieldEditor = () => {
@@ -114,7 +205,7 @@ const FormBuilder = () => {
       setMaxFileSizeMB(5);
     }
 
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 120, behavior: 'smooth' });
   };
 
   // Toggle allowed extension selection
@@ -132,7 +223,6 @@ const FormBuilder = () => {
     }
   };
 
-  // Select all or clear extensions
   const selectAllExtensions = () => {
     setAllowedExtensions([...AVAILABLE_EXTENSIONS]);
     setFieldError('');
@@ -182,6 +272,10 @@ const FormBuilder = () => {
       };
     } else if (CHOICE_TYPES.includes(type)) {
       fieldOptions = options.map((opt) => opt.trim()).filter(Boolean);
+      if (fieldOptions.length === 0) {
+        setFieldError('Please provide at least one valid option.');
+        return;
+      }
     }
 
     const payload = {
@@ -217,15 +311,16 @@ const FormBuilder = () => {
   };
 
   // Delete Field
-  const handleDeleteField = async (fieldId) => {
-    if (!window.confirm('Delete this field from your form?')) return;
+  const confirmDeleteField = async () => {
+    if (!fieldToDelete) return;
 
     try {
-      await api.delete(`/forms/${formId}/fields/${fieldId}`);
-      setFields((prev) => prev.filter((f) => f.id !== fieldId));
-      if (editingFieldId === fieldId) {
+      await api.delete(`/forms/${formId}/fields/${fieldToDelete.id}`);
+      setFields((prev) => prev.filter((f) => f.id !== fieldToDelete.id));
+      if (editingFieldId === fieldToDelete.id) {
         resetFieldEditor();
       }
+      setFieldToDelete(null);
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to delete field.');
     }
@@ -233,473 +328,632 @@ const FormBuilder = () => {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center py-24">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+      <div className="min-h-[70vh] flex flex-col justify-center items-center px-4">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-3" />
+        <p className="text-gray-500 text-sm font-medium">Loading form studio...</p>
       </div>
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Top Navigation & Breadcrumbs */}
-      <div className="flex items-center justify-between mb-6">
-        <Link to="/dashboard" className="text-sm text-blue-600 hover:text-blue-700 font-medium">
-          &larr; Back to Dashboard
-        </Link>
-        <div className="flex items-center space-x-3">
+    <div className="min-h-screen bg-slate-50/60 pb-16">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+        {/* Navigation Breadcrumb */}
+        <div className="flex items-center justify-between mb-6">
           <Link
-            to={`/forms/${formId}/preview`}
-            className="inline-flex items-center bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-1.5 rounded-lg text-sm font-medium shadow-sm transition"
+            to="/dashboard"
+            className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors"
           >
-            <span className="mr-1.5">👁️</span> Preview / Test Mode
+            <ArrowLeft className="h-4 w-4 mr-1.5" />
+            Back to Dashboard
           </Link>
-          <Link
-            to={`/forms/${formId}/edit`}
-            className="text-sm text-gray-600 hover:text-gray-900 font-medium px-2 py-1"
-          >
-            Edit Form Info &rarr;
-          </Link>
-        </div>
-      </div>
-
-      {/* Form Details Banner */}
-      <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">{form?.title}</h1>
-        {form?.description && (
-          <p className="text-gray-600 text-sm mt-1.5">{form.description}</p>
-        )}
-        <div className="flex items-center space-x-3 mt-4 text-xs text-gray-400">
-          <span>Form ID: {form?.id}</span>
-          <span>•</span>
-          <span>Total Fields: {fields.length}</span>
-        </div>
-      </div>
-
-      {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
-          {error}
-        </div>
-      )}
-
-      {/* Grid: Left = Field Editor Form, Right = Form Preview / Fields List */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Left Column: Field Creator / Editor */}
-        <div className="lg:col-span-5">
-          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm sticky top-24">
-            <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-100">
-              <h2 className="text-lg font-bold text-gray-900">
-                {editingFieldId ? 'Edit Field' : 'Add New Field'}
-              </h2>
-              {editingFieldId && (
-                <button
-                  type="button"
-                  onClick={resetFieldEditor}
-                  className="text-xs text-gray-500 hover:text-gray-700 underline"
-                >
-                  Cancel Edit
-                </button>
+          <div className="flex items-center space-x-2.5">
+            <Link to={`/forms/${formId}/responses`}>
+              <Button variant="outline" size="sm" className="font-medium bg-white">
+                <BarChart3 className="h-4 w-4 mr-1.5 text-indigo-600" />
+                Responses
+              </Button>
+            </Link>
+            <Link to={`/forms/${formId}/preview`}>
+              <Button variant="outline" size="sm" className="font-medium bg-white">
+                <Eye className="h-4 w-4 mr-1.5 text-blue-600" />
+                Test Preview
+              </Button>
+            </Link>
+            <Button
+              size="sm"
+              onClick={handlePublishForm}
+              disabled={publishing || fields.length === 0}
+              className={`font-semibold shadow-sm ${
+                form?.status === 'published'
+                  ? 'bg-emerald-600 hover:bg-emerald-700'
+                  : 'bg-blue-600 hover:bg-blue-700'
+              }`}
+            >
+              {publishing ? (
+                <>
+                  <span className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-white mr-1.5" />
+                  Publishing...
+                </>
+              ) : form?.status === 'published' ? (
+                <>
+                  <Rocket className="h-4 w-4 mr-1.5" />
+                  Republish
+                </>
+              ) : (
+                <>
+                  <Rocket className="h-4 w-4 mr-1.5" />
+                  Publish Form
+                </>
               )}
+            </Button>
+            <Link to={`/forms/${formId}/edit`}>
+              <Button variant="ghost" size="sm" className="text-gray-500 hover:text-gray-900">
+                Edit Info &rarr;
+              </Button>
+            </Link>
+          </div>
+        </div>
+
+        {/* Publish Alerts */}
+        {publishSuccess && (
+          <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-2xl text-sm flex items-center justify-between shadow-sm">
+            <div className="flex items-center space-x-2">
+              <Check className="h-5 w-5 text-emerald-600" />
+              <span className="font-medium">{publishSuccess}</span>
+            </div>
+            <button
+              onClick={() => setPublishSuccess('')}
+              className="text-xs font-semibold text-emerald-700 hover:text-emerald-900 ml-4"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
+        {publishError && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-2xl text-sm flex items-center justify-between shadow-sm">
+            <span>⚠️ {publishError}</span>
+            <button
+              onClick={() => setPublishError('')}
+              className="text-xs font-semibold text-red-600 hover:text-red-800 ml-4"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
+        {/* Form Details Banner Card */}
+        <Card className="border-border/80 shadow-sm mb-8 overflow-hidden bg-white">
+          <CardHeader className="p-6 sm:p-8 pb-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center space-x-3">
+                <CardTitle className="text-2xl font-extrabold text-gray-900">
+                  {form?.title}
+                </CardTitle>
+                {form?.status === 'published' ? (
+                  <Badge variant="success">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 mr-1.5 animate-pulse" />
+                    Published
+                  </Badge>
+                ) : (
+                  <Badge variant="warning">Draft</Badge>
+                )}
+              </div>
             </div>
 
-            {fieldError && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg">
-                {fieldError}
-              </div>
+            {form?.description && (
+              <CardDescription className="text-sm text-gray-600 mt-2 whitespace-pre-line">
+                {form.description}
+              </CardDescription>
             )}
 
-            <form onSubmit={handleSaveField} className="space-y-4 text-sm">
-              <div>
-                <label className="block font-medium text-gray-700 mb-1">
-                  Field Label <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={label}
-                  onChange={(e) => setLabel(e.target.value)}
-                  placeholder="e.g. Upload your passport photo or resume"
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block font-medium text-gray-700 mb-1">
-                  Field Type
-                </label>
-                <select
-                  value={type}
-                  onChange={(e) => setType(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                >
-                  {SUPPORTED_FIELD_TYPES.map((t) => (
-                    <option key={t.value} value={t.value}>
-                      {t.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Placeholder: for text, email, number, textarea */}
-              {!CHOICE_TYPES.includes(type) && type !== 'file' && (
-                <div>
-                  <label className="block font-medium text-gray-700 mb-1">
-                    Placeholder (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    value={placeholder}
-                    onChange={(e) => setPlaceholder(e.target.value)}
-                    placeholder="e.g. Enter your response here"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
+            <div className="flex items-center space-x-4 mt-4 text-xs text-gray-400">
+              <span>Form ID: {form?.id}</span>
+              <span>•</span>
+              <span>Total Fields: {fields.length}</span>
+              {form?.publishedAt && (
+                <>
+                  <span>•</span>
+                  <span>Published {new Date(form.publishedAt).toLocaleString()}</span>
+                </>
               )}
-
-              {/* File Upload Configuration Section */}
-              {type === 'file' && (
-                <div className="bg-blue-50/60 p-4 rounded-xl border border-blue-200 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <label className="block font-semibold text-gray-800">
-                      Allowed File Extensions <span className="text-red-500">*</span>
-                    </label>
-                    <button
-                      type="button"
-                      onClick={selectAllExtensions}
-                      className="text-xs text-blue-600 hover:text-blue-800 font-medium"
-                    >
-                      Select All
-                    </button>
-                  </div>
-
-                  {/* Extension Badges */}
-                  <div className="grid grid-cols-4 gap-2">
-                    {AVAILABLE_EXTENSIONS.map((ext) => {
-                      const isSelected = allowedExtensions.includes(ext);
-                      return (
-                        <button
-                          key={ext}
-                          type="button"
-                          onClick={() => toggleExtension(ext)}
-                          className={`py-1.5 px-2 rounded-lg text-xs font-semibold border transition text-center ${
-                            isSelected
-                              ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
-                          }`}
-                        >
-                          {isSelected && '✓ '}
-                          .{ext.toLowerCase()}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* Maximum File Size */}
-                  <div>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <label className="block font-semibold text-gray-800">
-                        Max File Size (in MB) <span className="text-red-500">*</span>
-                      </label>
-                      <span className="text-xs text-gray-500">
-                        Current: <strong>{maxFileSizeMB} MB</strong>
-                      </span>
-                    </div>
-
-                    <div className="flex items-center space-x-2">
-                      {PRESET_FILE_SIZES.map((sz) => (
-                        <button
-                          key={sz}
-                          type="button"
-                          onClick={() => setMaxFileSizeMB(sz)}
-                          className={`px-2.5 py-1 text-xs rounded-md border font-medium transition ${
-                            Number(maxFileSizeMB) === sz
-                              ? 'bg-blue-600 text-white border-blue-600'
-                              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                          }`}
-                        >
-                          {sz} MB
-                        </button>
-                      ))}
-                      <div className="flex-1 flex items-center space-x-1">
-                        <input
-                          type="number"
-                          min="1"
-                          max="100"
-                          value={maxFileSizeMB}
-                          onChange={(e) => setMaxFileSizeMB(e.target.value)}
-                          placeholder="Custom"
-                          className="w-full px-2 py-1 text-xs border border-gray-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 text-center"
-                        />
-                        <span className="text-xs text-gray-500 font-medium">MB</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Options Management for Choice Fields */}
-              {CHOICE_TYPES.includes(type) && (
-                <div className="bg-gray-50 p-3.5 rounded-lg border border-gray-200">
-                  <label className="block font-medium text-gray-700 mb-2">
-                    Choices / Options
-                  </label>
-                  <div className="space-y-2 mb-2">
-                    {options.map((opt, idx) => (
-                      <div key={idx} className="flex items-center space-x-2">
-                        <input
-                          type="text"
-                          value={opt}
-                          onChange={(e) => handleOptionChange(idx, e.target.value)}
-                          placeholder={`Option ${idx + 1}`}
-                          className="flex-1 px-2.5 py-1.5 border border-gray-300 rounded text-sm bg-white"
-                          required
-                        />
-                        {options.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => removeOption(idx)}
-                            className="text-red-500 hover:text-red-700 text-xs px-1.5 py-1"
-                          >
-                            ✕
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={addOption}
-                    className="text-xs text-blue-600 hover:text-blue-700 font-medium"
-                  >
-                    + Add Another Choice
-                  </button>
-                </div>
-              )}
-
-              <div className="flex items-center justify-between pt-2">
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="requiredToggle"
-                    checked={required}
-                    onChange={(e) => setRequired(e.target.checked)}
-                    className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                  />
-                  <label htmlFor="requiredToggle" className="text-gray-700 select-none">
-                    Required field
-                  </label>
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <label className="text-gray-600 text-xs font-medium">Sort Order:</label>
-                  <input
-                    type="number"
-                    value={sortOrder}
-                    onChange={(e) => setSortOrder(e.target.value)}
-                    className="w-16 px-2 py-1 border border-gray-300 rounded text-center text-sm"
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={submittingField}
-                className="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg shadow-sm transition disabled:opacity-50"
-              >
-                {submittingField
-                  ? 'Saving Field...'
-                  : editingFieldId
-                  ? 'Update Field'
-                  : '+ Add Field to Form'}
-              </button>
-            </form>
-          </div>
-        </div>
-
-        {/* Right Column: Fields List / Live Previews */}
-        <div className="lg:col-span-7">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-gray-900">
-              Configured Fields ({fields.length})
-            </h2>
-          </div>
-
-          {fields.length === 0 ? (
-            <div className="bg-white rounded-xl border border-dashed border-gray-300 p-12 text-center">
-              <div className="text-gray-400 text-3xl mb-2">📋</div>
-              <h3 className="font-semibold text-gray-900 mb-1">No fields added yet</h3>
-              <p className="text-sm text-gray-500 max-w-sm mx-auto">
-                Use the editor on the left to add your first field to this form.
-              </p>
             </div>
-          ) : (
-            <div className="space-y-4">
-              {fields.map((field, idx) => (
-                <div
-                  key={field.id}
-                  className={`bg-white rounded-xl border p-5 shadow-sm transition ${
-                    editingFieldId === field.id
-                      ? 'border-blue-500 ring-2 ring-blue-100'
-                      : 'border-gray-200'
-                  }`}
-                >
-                  <div className="flex items-start justify-between pb-3 border-b border-gray-100 mb-4">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-xs bg-gray-100 text-gray-700 font-mono px-2 py-0.5 rounded">
-                        #{field.sortOrder ?? idx}
-                      </span>
-                      <span className="text-xs bg-blue-50 text-blue-700 font-medium px-2 py-0.5 rounded capitalize">
-                        {field.type === 'file' ? '📁 File Upload' : field.type}
-                      </span>
-                      {field.required && (
-                        <span className="text-xs bg-red-50 text-red-600 font-medium px-2 py-0.5 rounded">
-                          Required
-                        </span>
-                      )}
-                    </div>
+          </CardHeader>
 
-                    <div className="flex items-center space-x-3 text-xs">
-                      <button
-                        onClick={() => startEditingField(field)}
-                        className="text-blue-600 hover:text-blue-700 font-medium"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDeleteField(field.id)}
-                        className="text-red-600 hover:text-red-700 font-medium"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Render Visual Preview of Field */}
-                  <div>
-                    <label className="block font-semibold text-gray-900 mb-2 text-sm">
-                      {field.label}
-                      {field.required && <span className="text-red-500 ml-1">*</span>}
-                    </label>
-
-                    {field.type === 'text' && (
-                      <input
-                        type="text"
-                        disabled
-                        placeholder={field.placeholder || 'Text input'}
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-sm cursor-not-allowed text-gray-500"
-                      />
-                    )}
-
-                    {field.type === 'email' && (
-                      <input
-                        type="email"
-                        disabled
-                        placeholder={field.placeholder || 'name@example.com'}
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-sm cursor-not-allowed text-gray-500"
-                      />
-                    )}
-
-                    {field.type === 'number' && (
-                      <input
-                        type="number"
-                        disabled
-                        placeholder={field.placeholder || '0'}
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-sm cursor-not-allowed text-gray-500"
-                      />
-                    )}
-
-                    {field.type === 'textarea' && (
-                      <textarea
-                        disabled
-                        rows={2}
-                        placeholder={field.placeholder || 'Write your paragraph answer...'}
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-sm cursor-not-allowed text-gray-500"
-                      />
-                    )}
-
-                    {field.type === 'select' && (
-                      <select
-                        disabled
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-sm cursor-not-allowed text-gray-500"
-                      >
-                        <option>{field.placeholder || 'Select an option'}</option>
-                        {Array.isArray(field.options) &&
-                          field.options.map((opt, i) => <option key={i}>{opt}</option>)}
-                      </select>
-                    )}
-
-                    {field.type === 'radio' && (
-                      <div className="space-y-1.5 mt-1">
-                        {Array.isArray(field.options) && field.options.length > 0 ? (
-                          field.options.map((opt, i) => (
-                            <label key={i} className="flex items-center space-x-2 text-sm text-gray-600">
-                              <input type="radio" disabled className="text-blue-600" />
-                              <span>{opt}</span>
-                            </label>
-                          ))
-                        ) : (
-                          <span className="text-xs text-gray-400">No options defined</span>
-                        )}
-                      </div>
-                    )}
-
-                    {field.type === 'checkbox' && (
-                      <div className="space-y-1.5 mt-1">
-                        {Array.isArray(field.options) && field.options.length > 0 ? (
-                          field.options.map((opt, i) => (
-                            <label key={i} className="flex items-center space-x-2 text-sm text-gray-600">
-                              <input type="checkbox" disabled className="rounded text-blue-600" />
-                              <span>{opt}</span>
-                            </label>
-                          ))
-                        ) : (
-                          <span className="text-xs text-gray-400">No options defined</span>
-                        )}
-                      </div>
-                    )}
-
-                    {/* File Upload Preview */}
-                    {field.type === 'file' && (
-                      <div className="border-2 border-dashed border-gray-300 rounded-xl p-5 bg-gray-50/70 text-center">
-                        <div className="flex flex-col items-center justify-center space-y-2">
-                          <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-lg">
-                            📁
-                          </div>
-                          <div>
-                            <span className="text-sm font-semibold text-blue-600 hover:underline cursor-not-allowed">
-                              Choose a file
-                            </span>
-                            <span className="text-xs text-gray-500"> or drag and drop</span>
-                          </div>
-
-                          {/* Upload Restrictions & Security Rules */}
-                          <div className="pt-2 border-t border-gray-200 w-full max-w-sm space-y-1 text-xs text-gray-500">
-                            <div className="flex items-center justify-center space-x-1.5">
-                              <span className="font-medium text-gray-700">Accepted Formats:</span>
-                              <span className="uppercase text-blue-700 font-mono font-medium">
-                                {field.options?.allowedExtensions && Array.isArray(field.options.allowedExtensions)
-                                  ? field.options.allowedExtensions.join(', ')
-                                  : 'Any'}
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-center space-x-1.5">
-                              <span className="font-medium text-gray-700">Maximum File Size:</span>
-                              <span className="font-semibold text-gray-800">
-                                {field.options?.maxFileSizeMB || 5} MB
-                              </span>
-                            </div>
-                            <div className="text-[11px] text-gray-400 italic">
-                              🔒 Strict server-side extension & MIME type validation enabled
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
+          {/* Public Sharing Bar */}
+          {form?.status === 'published' && form?.slug && (
+            <div className="border-t border-emerald-100 bg-emerald-50/50 px-6 sm:px-8 py-4">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 block mb-1">
+                    Public Share Link
+                  </span>
+                  <div className="bg-white border border-emerald-200 rounded-lg px-3 py-1.5 text-xs font-mono text-gray-700 truncate select-all">
+                    {`${window.location.origin}/public/forms/${form.slug}`}
                   </div>
                 </div>
-              ))}
+                <div className="flex items-center space-x-2 shrink-0">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={copyPublicLink}
+                    className="bg-white text-emerald-700 border-emerald-300 hover:bg-emerald-50 text-xs h-8"
+                  >
+                    {copiedLink ? (
+                      <>
+                        <Check className="h-3.5 w-3.5 mr-1 text-emerald-600" />
+                        Copied!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-3.5 w-3.5 mr-1" />
+                        Copy Link
+                      </>
+                    )}
+                  </Button>
+                  <a
+                    href={`/public/forms/${form.slug}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Button
+                      size="sm"
+                      className="bg-emerald-600 hover:bg-emerald-700 text-xs h-8 shadow-xs"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5 mr-1" />
+                      View Live ↗
+                    </Button>
+                  </a>
+                </div>
+              </div>
             </div>
           )}
+        </Card>
+
+        {/* 2-Column Studio Grid: Left = Field Editor, Right = Fields List / Live Preview */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          {/* Left Column: Field Editor */}
+          <div className="lg:col-span-5">
+            <Card className="border-border/80 shadow-md sticky top-24">
+              <CardHeader className="p-6 pb-4 border-b border-gray-100 flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg font-bold text-gray-900">
+                    {editingFieldId ? 'Edit Field' : 'Add New Field'}
+                  </CardTitle>
+                  <CardDescription className="text-xs text-gray-500 mt-0.5">
+                    Configure question label, input type and options
+                  </CardDescription>
+                </div>
+                {editingFieldId && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={resetFieldEditor}
+                    className="text-xs text-gray-500 hover:text-gray-900 h-7"
+                  >
+                    Cancel Edit
+                  </Button>
+                )}
+              </CardHeader>
+
+              <CardContent className="p-6 pt-5">
+                {fieldError && (
+                  <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl flex items-start space-x-2">
+                    <span>⚠️</span>
+                    <span>{fieldError}</span>
+                  </div>
+                )}
+
+                <form onSubmit={handleSaveField} className="space-y-4">
+                  {/* Field Label */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="field-label" className="text-xs font-semibold text-gray-800">
+                      Field Label <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="field-label"
+                      type="text"
+                      value={label}
+                      onChange={(e) => setLabel(e.target.value)}
+                      placeholder="e.g. Full Legal Name or Upload Resume"
+                      required
+                      className="h-9 rounded-xl text-sm"
+                    />
+                  </div>
+
+                  {/* Field Type Select */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="field-type" className="text-xs font-semibold text-gray-800">
+                      Field Input Type
+                    </Label>
+                    <Select
+                      id="field-type"
+                      value={type}
+                      onChange={(e) => setType(e.target.value)}
+                      className="rounded-xl text-sm"
+                    >
+                      {SUPPORTED_FIELD_TYPES.map((t) => (
+                        <option key={t.value} value={t.value}>
+                          {t.label}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+
+                  {/* Placeholder for non-choice & non-file fields */}
+                  {!CHOICE_TYPES.includes(type) && type !== 'file' && (
+                    <div className="space-y-1.5">
+                      <Label htmlFor="field-placeholder" className="text-xs font-semibold text-gray-800">
+                        Placeholder (Optional)
+                      </Label>
+                      <Input
+                        id="field-placeholder"
+                        type="text"
+                        value={placeholder}
+                        onChange={(e) => setPlaceholder(e.target.value)}
+                        placeholder="e.g. Enter your response..."
+                        className="h-9 rounded-xl text-sm"
+                      />
+                    </div>
+                  )}
+
+                  {/* Choice Options Configuration */}
+                  {CHOICE_TYPES.includes(type) && (
+                    <div className="space-y-2 bg-slate-50/80 p-3.5 rounded-xl border border-gray-200">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-semibold text-gray-800">
+                          Options List <span className="text-red-500">*</span>
+                        </Label>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={addOption}
+                          className="h-7 text-xs text-blue-600 hover:text-blue-800 px-2 font-semibold"
+                        >
+                          <Plus className="h-3 w-3 mr-1" /> Add Option
+                        </Button>
+                      </div>
+
+                      <div className="space-y-2">
+                        {options.map((opt, optIdx) => (
+                          <div key={optIdx} className="flex items-center space-x-2">
+                            <span className="text-xs font-mono text-gray-400 w-4">
+                              {optIdx + 1}.
+                            </span>
+                            <Input
+                              type="text"
+                              value={opt}
+                              onChange={(e) => handleOptionChange(optIdx, e.target.value)}
+                              placeholder={`Option ${optIdx + 1}`}
+                              className="h-8 rounded-lg text-xs"
+                            />
+                            {options.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => removeOption(optIdx)}
+                                className="text-gray-400 hover:text-red-500 p-1 transition"
+                                title="Remove Option"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* File Upload Configuration */}
+                  {type === 'file' && (
+                    <div className="space-y-3 bg-blue-50/50 p-4 rounded-xl border border-blue-200">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-semibold text-blue-900">
+                          Allowed File Extensions <span className="text-red-500">*</span>
+                        </Label>
+                        <button
+                          type="button"
+                          onClick={selectAllExtensions}
+                          className="text-[11px] font-semibold text-blue-600 hover:text-blue-800 underline"
+                        >
+                          Select All
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-4 gap-1.5">
+                        {AVAILABLE_EXTENSIONS.map((ext) => {
+                          const isSelected = allowedExtensions.includes(ext);
+                          return (
+                            <button
+                              key={ext}
+                              type="button"
+                              onClick={() => toggleExtension(ext)}
+                              className={`py-1 px-1.5 rounded-lg text-xs font-bold border transition text-center ${
+                                isSelected
+                                  ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
+                              }`}
+                            >
+                              {isSelected ? '✓ ' : ''}.{ext.toLowerCase()}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <Label className="text-xs font-semibold text-blue-900">
+                            Max File Size (in MB)
+                          </Label>
+                          <span className="text-xs font-bold text-blue-700">
+                            {maxFileSizeMB} MB
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-1.5">
+                          {PRESET_FILE_SIZES.map((sz) => (
+                            <button
+                              key={sz}
+                              type="button"
+                              onClick={() => setMaxFileSizeMB(sz)}
+                              className={`flex-1 py-1 text-xs rounded-lg border font-semibold transition ${
+                                Number(maxFileSizeMB) === sz
+                                  ? 'bg-blue-600 text-white border-blue-600'
+                                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
+                              }`}
+                            >
+                              {sz} MB
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Required Field Checkbox */}
+                  <div className="flex items-center space-x-2 pt-2">
+                    <Checkbox
+                      id="required-toggle"
+                      checked={required}
+                      onChange={(e) => setRequired(e.target.checked)}
+                    />
+                    <Label
+                      htmlFor="required-toggle"
+                      className="text-xs font-medium text-gray-700 cursor-pointer"
+                    >
+                      Mandatory / Required field
+                    </Label>
+                  </div>
+
+                  {/* Submit Button */}
+                  <Button
+                    type="submit"
+                    disabled={submittingField}
+                    className="w-full h-10 rounded-xl font-semibold shadow-sm mt-3"
+                  >
+                    {submittingField ? (
+                      'Saving Field...'
+                    ) : editingFieldId ? (
+                      <>
+                        <Check className="h-4 w-4 mr-1.5" />
+                        Update Field
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="h-4 w-4 mr-1.5" />
+                        Add Field to Form
+                      </>
+                    )}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Right Column: Configured Fields List / Studio Preview */}
+          <div className="lg:col-span-7 space-y-4">
+            <div className="flex items-center justify-between pb-1">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">
+                  Configured Fields ({fields.length})
+                </h2>
+                <p className="text-xs text-gray-500">
+                  Review, edit, and inspect inputs configured for respondents
+                </p>
+              </div>
+            </div>
+
+            {fields.length === 0 ? (
+              <Card className="border-dashed border-2 border-border/80 bg-white/60 p-12 text-center">
+                <div className="w-14 h-14 bg-gray-100 text-gray-400 rounded-2xl flex items-center justify-center mx-auto mb-3 text-2xl">
+                  <Layers className="h-6 w-6" />
+                </div>
+                <h3 className="font-bold text-gray-900 text-base mb-1">
+                  No Fields Added Yet
+                </h3>
+                <p className="text-xs text-gray-500 max-w-sm mx-auto">
+                  Use the field editor on the left to add your first question or input field.
+                </p>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                {fields.map((field, idx) => {
+                  const isCurrentEditing = editingFieldId === field.id;
+
+                  return (
+                    <Card
+                      key={field.id}
+                      className={`border transition-all bg-white ${
+                        isCurrentEditing
+                          ? 'border-blue-500 ring-2 ring-blue-100 shadow-md'
+                          : 'border-border/80 hover:shadow-sm'
+                      }`}
+                    >
+                      <CardHeader className="p-4 sm:p-5 pb-3 border-b border-gray-100 flex flex-row items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-xs font-mono font-bold bg-gray-100 text-gray-700 px-2 py-0.5 rounded-md">
+                            #{idx + 1}
+                          </span>
+                          <Badge variant="secondary" className="capitalize text-[11px] font-semibold">
+                            {field.type}
+                          </Badge>
+                          {field.required && (
+                            <Badge variant="destructive" className="text-[10px] py-0 px-2 font-medium">
+                              Required
+                            </Badge>
+                          )}
+                        </div>
+
+                        <div className="flex items-center space-x-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => startEditingField(field)}
+                            className="h-8 text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-2.5 font-medium"
+                          >
+                            <Edit className="h-3.5 w-3.5 mr-1" />
+                            Edit
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setFieldToDelete(field)}
+                            className="h-8 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 px-2.5 font-medium"
+                          >
+                            <Trash2 className="h-3.5 w-3.5 mr-1" />
+                            Delete
+                          </Button>
+                        </div>
+                      </CardHeader>
+
+                      <CardContent className="p-4 sm:p-5 pt-3">
+                        <p className="text-sm font-bold text-gray-900 mb-2">
+                          {field.label}
+                          {field.required && <span className="text-red-500 ml-1">*</span>}
+                        </p>
+
+                        {/* Visual field preview */}
+                        <div className="bg-slate-50/80 p-3.5 rounded-xl border border-gray-200/80">
+                          {field.type === 'text' && (
+                            <Input
+                              disabled
+                              placeholder={field.placeholder || 'Text input'}
+                              className="h-8 text-xs bg-white text-gray-400 cursor-not-allowed"
+                            />
+                          )}
+
+                          {field.type === 'email' && (
+                            <Input
+                              disabled
+                              placeholder={field.placeholder || 'name@example.com'}
+                              className="h-8 text-xs bg-white text-gray-400 cursor-not-allowed"
+                            />
+                          )}
+
+                          {field.type === 'number' && (
+                            <Input
+                              disabled
+                              placeholder={field.placeholder || '0'}
+                              className="h-8 text-xs bg-white text-gray-400 cursor-not-allowed"
+                            />
+                          )}
+
+                          {field.type === 'textarea' && (
+                            <Textarea
+                              disabled
+                              rows={2}
+                              placeholder={field.placeholder || 'Multi-line answer...'}
+                              className="text-xs bg-white text-gray-400 cursor-not-allowed"
+                            />
+                          )}
+
+                          {field.type === 'select' && (
+                            <Select disabled className="h-8 text-xs bg-white text-gray-400 cursor-not-allowed">
+                              <option>-- Select an option --</option>
+                              {Array.isArray(field.options) &&
+                                field.options.map((opt, i) => (
+                                  <option key={i}>{opt}</option>
+                                ))}
+                            </Select>
+                          )}
+
+                          {field.type === 'radio' && (
+                            <div className="space-y-1.5">
+                              {Array.isArray(field.options) &&
+                                field.options.map((opt, i) => (
+                                  <div key={i} className="flex items-center space-x-2 text-xs text-gray-500">
+                                    <div className="h-3.5 w-3.5 rounded-full border border-gray-300" />
+                                    <span>{opt}</span>
+                                  </div>
+                                ))}
+                            </div>
+                          )}
+
+                          {field.type === 'checkbox' && (
+                            <div className="space-y-1.5">
+                              {Array.isArray(field.options) &&
+                                field.options.map((opt, i) => (
+                                  <div key={i} className="flex items-center space-x-2 text-xs text-gray-500">
+                                    <div className="h-3.5 w-3.5 rounded border border-gray-300" />
+                                    <span>{opt}</span>
+                                  </div>
+                                ))}
+                            </div>
+                          )}
+
+                          {field.type === 'file' && (
+                            <div className="border border-dashed border-gray-300 rounded-lg p-3 text-center bg-white">
+                              <FileUp className="h-5 w-5 text-gray-400 mx-auto mb-1" />
+                              <p className="text-[11px] text-gray-500 font-medium">
+                                Allowed: {field.options?.allowedExtensions?.join(', ') || 'All'} • Max:{' '}
+                                {field.options?.maxFileSizeMB || 5} MB
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
+
+        {/* Delete Field Confirmation Dialog */}
+        <Dialog open={Boolean(fieldToDelete)} onOpenChange={(open) => !open && setFieldToDelete(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-red-600 flex items-center">
+                <Trash2 className="h-5 w-5 mr-2" />
+                Delete Field
+              </DialogTitle>
+              <DialogDescription>
+                Are you sure you want to remove{' '}
+                <strong className="text-gray-900 font-semibold">
+                  "{fieldToDelete?.label}"
+                </strong>{' '}
+                from this form?
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="mt-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setFieldToDelete(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={confirmDeleteField}
+              >
+                Delete Field
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

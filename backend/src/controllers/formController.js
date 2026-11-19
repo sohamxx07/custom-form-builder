@@ -1,4 +1,5 @@
 const { Form, FormField } = require('../models');
+const { generateUniqueSlug } = require('../utils/generateSlug');
 
 // POST /api/forms - Create a new form
 const createForm = async (req, res) => {
@@ -255,6 +256,66 @@ const testSubmit = async (req, res) => {
   }
 };
 
+// POST /api/forms/:id/publish - Publish a form
+const publishForm = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // 1. Find the form belonging to the authenticated user
+    const form = await Form.findOne({
+      where: {
+        id,
+        userId: req.user.id,
+      },
+      include: [
+        {
+          model: FormField,
+          as: 'fields',
+        },
+      ],
+    });
+
+    // 2. Return 404 if form not found or doesn't belong to the user
+    if (!form) {
+      return res.status(404).json({
+        data: null,
+        message: 'Form not found',
+      });
+    }
+
+    // 3. Check that the form contains at least one FormField
+    if (!form.fields || form.fields.length === 0) {
+      return res.status(400).json({
+        data: null,
+        message: 'Cannot publish an empty form. Please add at least one field before publishing.',
+      });
+    }
+
+    // 4. Preserve existing slug if already assigned, otherwise generate a unique slug
+    let slug = form.slug;
+    if (!slug) {
+      slug = await generateUniqueSlug(form.title, Form, form.id);
+    }
+
+    // 5. Update form status, slug, and publishedAt
+    form.status = 'published';
+    form.slug = slug;
+    form.publishedAt = new Date();
+    await form.save();
+
+    return res.status(200).json({
+      data: form,
+      message: 'Form published successfully',
+    });
+  } catch (error) {
+    console.error('Publish form error:', error);
+    return res.status(500).json({
+      data: null,
+      message: 'An error occurred while publishing the form',
+    });
+  }
+};
+
 module.exports = {
   createForm,
   getAllForms,
@@ -262,4 +323,5 @@ module.exports = {
   updateForm,
   deleteForm,
   testSubmit,
+  publishForm,
 };

@@ -4,6 +4,8 @@ const cors = require('cors');
 const authRoutes = require('./routes/authRoutes');
 const formRoutes = require('./routes/formRoutes');
 const formFieldRoutes = require('./routes/formFieldRoutes');
+const responseRoutes = require('./routes/responseRoutes');
+const publicRoutes = require('./routes/publicRoutes');
 
 const app = express();
 
@@ -40,6 +42,8 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/forms', formRoutes);
 app.use('/api/forms', formFieldRoutes);
+app.use('/api/forms', responseRoutes);
+app.use('/api/public', publicRoutes);
 
 // 404 fallback handler for unmatched routes
 app.use((req, res) => {
