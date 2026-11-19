@@ -4,33 +4,37 @@
 
 @layer base {
   :root {
-    --background: 210 40% 98%;
-    --foreground: 222.2 84% 4.9%;
+    /* Soft tinted light background #EEF2FF (226 100% 97%) */
+    --background: 226 100% 98%;
+    /* Slate 900 #0F172A */
+    --foreground: 222.2 47.4% 11.2%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 222.2 47.4% 11.2%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 222.2 47.4% 11.2%;
 
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
+    /* Indigo Primary #4F46E5 & #3730A3 */
+    --primary: 243 75% 59%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Soft Indigo Secondary #EEF2FF */
+    --secondary: 226 100% 96.5%;
+    --secondary-foreground: 244 55% 41%;
 
-    --muted: 210 40% 96.1%;
+    --muted: 220 30% 96%;
     --muted-foreground: 215.4 16.3% 46.9%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 226 100% 96%;
+    --accent-foreground: 244 55% 41%;
 
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
+    --border: 220 25% 91%;
+    --input: 220 25% 91%;
+    --ring: 243 75% 59%;
 
     --radius: 0.75rem;
   }
@@ -40,8 +44,15 @@
   * {
     @apply border-border;
   }
+  html {
+    scroll-behavior: smooth;
+  }
   body {
-    @apply bg-background text-foreground antialiased selection:bg-primary/10 selection:text-primary;
+    @apply bg-background text-foreground antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  ::selection {
+    background-color: rgba(79, 70, 229, 0.15);
+    color: #4F46E5;
   }
 }

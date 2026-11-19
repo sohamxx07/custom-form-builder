@@ -14,7 +14,6 @@ import {
   CardTitle,
   CardDescription,
   CardContent,
-  CardFooter,
 } from '@/components/ui/card';
 import {
   ArrowLeft,
@@ -22,8 +21,8 @@ import {
   CheckCircle2,
   AlertCircle,
   FileUp,
-  Sparkles,
   RotateCcw,
+  Calendar,
 } from 'lucide-react';
 
 const FormPreview = () => {
@@ -180,7 +179,7 @@ const FormPreview = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50/60 py-8 px-4 sm:px-6 lg:px-8 pb-16">
+    <div className="min-h-screen bg-[#EEF2FF]/40 py-8 px-4 sm:px-6 lg:px-8 pb-16">
       <div className="max-w-3xl mx-auto space-y-6">
         {/* Navigation Bar */}
         <div className="flex items-center justify-between">
@@ -297,6 +296,15 @@ const FormPreview = () => {
                       value={fieldAnswer || ''}
                       onChange={(e) => handleInputChange(field.id, e.target.value)}
                       placeholder={field.placeholder || '0'}
+                      className="h-10 rounded-xl"
+                    />
+                  )}
+
+                  {field.type === 'date' && (
+                    <Input
+                      type="date"
+                      value={fieldAnswer || ''}
+                      onChange={(e) => handleInputChange(field.id, e.target.value)}
                       className="h-10 rounded-xl"
                     />
                   )}

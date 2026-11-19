@@ -11,9 +11,8 @@ import {
   CardTitle,
   CardDescription,
   CardContent,
-  CardFooter,
 } from '@/components/ui/card';
-import { ArrowLeft, FileText, Sparkles, Save, ArrowRight } from 'lucide-react';
+import { ArrowLeft, FileText, Save, ArrowRight, Loader2 } from 'lucide-react';
 
 const FormEditor = () => {
   const { id } = useParams();
@@ -73,36 +72,36 @@ const FormEditor = () => {
 
   if (fetching) {
     return (
-      <div className="min-h-[70vh] flex flex-col justify-center items-center px-4">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-3" />
-        <p className="text-gray-500 text-sm font-medium">Loading form info...</p>
+      <div className="min-h-[70vh] flex flex-col justify-center items-center px-4 bg-[#EEF2FF]/40">
+        <Loader2 className="w-8 h-8 animate-spin text-[#4F46E5] mb-3" />
+        <p className="text-slate-500 text-sm font-medium">Loading form info...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50/60 py-10 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#EEF2FF]/40 py-10 px-4 sm:px-6 lg:px-8">
       <div className="max-w-2xl mx-auto space-y-6">
         {/* Navigation Breadcrumb */}
         <Link
           to="/dashboard"
-          className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors"
+          className="inline-flex items-center text-sm font-semibold text-slate-500 hover:text-[#4F46E5] transition-colors"
         >
           <ArrowLeft className="h-4 w-4 mr-1.5" />
           Back to Dashboard
         </Link>
 
-        <Card className="border-border/80 shadow-md">
-          <CardHeader className="p-6 sm:p-8 border-b border-gray-100">
+        <Card className="border-slate-200 bg-white shadow-xl rounded-2xl overflow-hidden">
+          <CardHeader className="p-6 sm:p-8 border-b border-slate-100 bg-slate-50/50">
             <div className="flex items-center space-x-3 mb-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600 border border-blue-100">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#EEF2FF] text-[#4F46E5] border border-indigo-100 shadow-xs">
                 <FileText className="h-5 w-5" />
               </div>
-              <CardTitle className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900">
+              <CardTitle className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
                 {isEditing ? 'Edit Form Information' : 'Create New Custom Form'}
               </CardTitle>
             </div>
-            <CardDescription className="text-sm text-gray-500">
+            <CardDescription className="text-xs sm:text-sm text-slate-500">
               {isEditing
                 ? 'Update the title and general description for this form workspace.'
                 : 'Enter basic details to initialize your form workspace, then proceed to configure fields.'}
@@ -111,7 +110,7 @@ const FormEditor = () => {
 
           <CardContent className="p-6 sm:p-8">
             {error && (
-              <div className="mb-6 p-3.5 bg-red-50 border border-red-200 text-red-700 text-xs font-medium rounded-xl flex items-start space-x-2">
+              <div className="mb-6 p-3.5 bg-red-50 border border-red-200 text-red-700 text-xs font-medium rounded-xl flex items-start space-x-2 animate-in fade-in duration-150">
                 <span>⚠️</span>
                 <span>{error}</span>
               </div>
@@ -119,7 +118,7 @@ const FormEditor = () => {
 
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="form-title" className="text-sm font-semibold text-gray-800">
+                <Label htmlFor="form-title" className="text-xs sm:text-sm font-bold text-slate-800">
                   Form Title <span className="text-red-500">*</span>
                 </Label>
                 <Input
@@ -127,17 +126,17 @@ const FormEditor = () => {
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g. Employee Onboarding Questionnaire"
+                  placeholder="e.g. Employee Feedback Survey"
                   required
                   className="h-10 rounded-xl text-sm"
                 />
-                <p className="text-xs text-gray-400">
+                <p className="text-[11px] text-slate-400">
                   A recognizable, clear title shown to respondents and on your dashboard.
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="form-desc" className="text-sm font-semibold text-gray-800">
+                <Label htmlFor="form-desc" className="text-xs sm:text-sm font-bold text-slate-800">
                   Form Description (Optional)
                 </Label>
                 <Textarea
@@ -150,7 +149,7 @@ const FormEditor = () => {
                 />
               </div>
 
-              <div className="pt-4 flex items-center justify-end space-x-3 border-t border-gray-100">
+              <div className="pt-4 flex items-center justify-end space-x-3 border-t border-slate-100">
                 <Link to="/dashboard">
                   <Button variant="outline" type="button" size="sm" className="rounded-xl">
                     Cancel
@@ -159,11 +158,13 @@ const FormEditor = () => {
                 <Button
                   type="submit"
                   disabled={loading}
-                  size="sm"
-                  className="rounded-xl font-semibold px-5 shadow-sm"
+                  className="rounded-xl font-semibold shadow-md shadow-indigo-500/20"
                 >
                   {loading ? (
-                    'Saving...'
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
                   ) : isEditing ? (
                     <>
                       <Save className="h-4 w-4 mr-1.5" />
@@ -171,7 +172,7 @@ const FormEditor = () => {
                     </>
                   ) : (
                     <>
-                      Continue to Field Builder
+                      Continue to Field Studio
                       <ArrowRight className="h-4 w-4 ml-1.5" />
                     </>
                   )}

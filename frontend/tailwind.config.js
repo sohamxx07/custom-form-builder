@@ -16,6 +16,7 @@ export default {
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
+          dark: "#3730A3",
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
@@ -41,11 +42,23 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        brand: {
+          primary: "#3730A3",       // Primary Indigo
+          secondary: "#4F46E5",     // Secondary Indigo
+          light: "#EEF2FF",         // Light background tint
+          surface: "#FFFFFF",       // Surface white
+          text: "#0F172A",          // Main slate text
+          success: "#16A34A",       // Success green
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+      },
+      boxShadow: {
+        'brand': '0 10px 25px -5px rgba(79, 70, 229, 0.15), 0 8px 10px -6px rgba(79, 70, 229, 0.1)',
+        'brand-lg': '0 20px 30px -10px rgba(55, 48, 163, 0.25)',
       },
     },
   },

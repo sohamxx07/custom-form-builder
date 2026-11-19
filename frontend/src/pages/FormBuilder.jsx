@@ -14,7 +14,6 @@ import {
   CardTitle,
   CardDescription,
   CardContent,
-  CardFooter,
 } from '@/components/ui/card';
 import {
   Dialog,
@@ -36,8 +35,6 @@ import {
   Check,
   ExternalLink,
   Layers,
-  Settings,
-  HelpCircle,
   FileUp,
   Type,
   Mail,
@@ -46,19 +43,19 @@ import {
   ListFilter,
   CheckSquare,
   Radio,
-  FileCheck,
-  GripVertical,
+  Calendar,
 } from 'lucide-react';
 
 const SUPPORTED_FIELD_TYPES = [
-  { value: 'text', label: 'Single-line Text', icon: Type },
-  { value: 'email', label: 'Email Address', icon: Mail },
-  { value: 'number', label: 'Number', icon: Hash },
-  { value: 'textarea', label: 'Multi-line Paragraph (Textarea)', icon: AlignLeft },
-  { value: 'select', label: 'Dropdown Select', icon: ListFilter },
-  { value: 'radio', label: 'Multiple Choice (Radio)', icon: Radio },
-  { value: 'checkbox', label: 'Checkboxes (Multi-select)', icon: CheckSquare },
-  { value: 'file', label: 'File Upload', icon: FileUp },
+  { value: 'text', label: 'Single-line Text', icon: Type, desc: 'Short text' },
+  { value: 'email', label: 'Email Address', icon: Mail, desc: 'name@mail.com' },
+  { value: 'number', label: 'Number', icon: Hash, desc: 'Numeric values' },
+  { value: 'date', label: 'Date', icon: Calendar, desc: 'Date picker' },
+  { value: 'textarea', label: 'Paragraph (Textarea)', icon: AlignLeft, desc: 'Long answers' },
+  { value: 'select', label: 'Dropdown Select', icon: ListFilter, desc: 'Single select' },
+  { value: 'radio', label: 'Multiple Choice (Radio)', icon: Radio, desc: 'One choice' },
+  { value: 'checkbox', label: 'Checkboxes (Multi-select)', icon: CheckSquare, desc: 'Multi-select' },
+  { value: 'file', label: 'File / Image Upload', icon: FileUp, desc: 'Docs & images' },
 ];
 
 const CHOICE_TYPES = ['select', 'radio', 'checkbox'];
@@ -68,6 +65,7 @@ const AVAILABLE_EXTENSIONS = [
   'JPG',
   'JPEG',
   'PNG',
+  'WEBP',
   'DOC',
   'DOCX',
   'XLS',
@@ -228,6 +226,11 @@ const FormBuilder = () => {
     setFieldError('');
   };
 
+  const selectImagesOnly = () => {
+    setAllowedExtensions(['JPG', 'JPEG', 'PNG', 'WEBP']);
+    setFieldError('');
+  };
+
   // Handle Option Changes for Choice Fields
   const handleOptionChange = (index, value) => {
     const updated = [...options];
@@ -336,7 +339,7 @@ const FormBuilder = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50/60 pb-16">
+    <div className="min-h-screen bg-[#EEF2FF]/40 pb-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
         {/* Navigation Breadcrumb */}
         <div className="flex items-center justify-between mb-6">
@@ -562,37 +565,60 @@ const FormBuilder = () => {
                     />
                   </div>
 
-                  {/* Field Type Select */}
+                  {/* Field Type Select - Visual Interactive Grid */}
                   <div className="space-y-1.5">
-                    <Label htmlFor="field-type" className="text-xs font-semibold text-gray-800">
-                      Field Input Type
-                    </Label>
-                    <Select
-                      id="field-type"
-                      value={type}
-                      onChange={(e) => setType(e.target.value)}
-                      className="rounded-xl text-sm"
-                    >
-                      {SUPPORTED_FIELD_TYPES.map((t) => (
-                        <option key={t.value} value={t.value}>
-                          {t.label}
-                        </option>
-                      ))}
-                    </Select>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="field-type" className="text-xs font-semibold text-slate-800">
+                        Field Input Type
+                      </Label>
+                      <span className="text-[11px] text-[#4F46E5] font-semibold">
+                        {SUPPORTED_FIELD_TYPES.find((t) => t.value === type)?.label}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-1.5 pt-0.5">
+                      {SUPPORTED_FIELD_TYPES.map((t) => {
+                        const Icon = t.icon;
+                        const isSelected = type === t.value;
+                        return (
+                          <button
+                            key={t.value}
+                            type="button"
+                            onClick={() => setType(t.value)}
+                            className={`p-2 rounded-xl border text-left transition-all duration-150 flex flex-col justify-between ${
+                              isSelected
+                                ? 'border-[#4F46E5] bg-[#EEF2FF] text-[#3730A3] shadow-xs ring-1 ring-[#4F46E5]'
+                                : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between w-full mb-1">
+                              <Icon className={`w-3.5 h-3.5 ${isSelected ? 'text-[#4F46E5]' : 'text-slate-400'}`} />
+                              {isSelected && <span className="h-1.5 w-1.5 rounded-full bg-[#4F46E5]" />}
+                            </div>
+                            <span className="text-[11px] font-bold leading-tight block truncate">
+                              {t.label}
+                            </span>
+                            <span className="text-[9px] text-slate-400 leading-none mt-0.5 block truncate">
+                              {t.desc}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
 
                   {/* Placeholder for non-choice & non-file fields */}
                   {!CHOICE_TYPES.includes(type) && type !== 'file' && (
                     <div className="space-y-1.5">
                       <Label htmlFor="field-placeholder" className="text-xs font-semibold text-gray-800">
-                        Placeholder (Optional)
+                        {type === 'date' ? 'Help Text / Description (Optional)' : 'Placeholder (Optional)'}
                       </Label>
                       <Input
                         id="field-placeholder"
                         type="text"
                         value={placeholder}
                         onChange={(e) => setPlaceholder(e.target.value)}
-                        placeholder="e.g. Enter your response..."
+                        placeholder={type === 'date' ? 'e.g. Choose your date of birth' : 'e.g. Enter your response...'}
                         className="h-9 rounded-xl text-sm"
                       />
                     </div>
@@ -647,21 +673,31 @@ const FormBuilder = () => {
 
                   {/* File Upload Configuration */}
                   {type === 'file' && (
-                    <div className="space-y-3 bg-blue-50/50 p-4 rounded-xl border border-blue-200">
+                    <div className="space-y-3 bg-[#EEF2FF]/60 p-4 rounded-xl border border-indigo-200">
                       <div className="flex items-center justify-between">
-                        <Label className="text-xs font-semibold text-blue-900">
+                        <Label className="text-xs font-semibold text-slate-900">
                           Allowed File Extensions <span className="text-red-500">*</span>
                         </Label>
-                        <button
-                          type="button"
-                          onClick={selectAllExtensions}
-                          className="text-[11px] font-semibold text-blue-600 hover:text-blue-800 underline"
-                        >
-                          Select All
-                        </button>
+                        <div className="flex items-center space-x-2">
+                          <button
+                            type="button"
+                            onClick={selectImagesOnly}
+                            className="text-[11px] font-semibold text-[#4F46E5] hover:text-[#3730A3] underline"
+                          >
+                            Images Only
+                          </button>
+                          <span className="text-slate-300">•</span>
+                          <button
+                            type="button"
+                            onClick={selectAllExtensions}
+                            className="text-[11px] font-semibold text-slate-600 hover:text-slate-800 underline"
+                          >
+                            Select All
+                          </button>
+                        </div>
                       </div>
 
-                      <div className="grid grid-cols-4 gap-1.5">
+                      <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
                         {AVAILABLE_EXTENSIONS.map((ext) => {
                           const isSelected = allowedExtensions.includes(ext);
                           return (
@@ -671,7 +707,7 @@ const FormBuilder = () => {
                               onClick={() => toggleExtension(ext)}
                               className={`py-1 px-1.5 rounded-lg text-xs font-bold border transition text-center ${
                                 isSelected
-                                  ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                                  ? 'bg-[#4F46E5] text-white border-[#4F46E5] shadow-xs'
                                   : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
                               }`}
                             >
@@ -856,6 +892,13 @@ const FormBuilder = () => {
                               placeholder={field.placeholder || '0'}
                               className="h-8 text-xs bg-white text-gray-400 cursor-not-allowed"
                             />
+                          )}
+
+                          {field.type === 'date' && (
+                            <div className="flex items-center space-x-2 bg-white px-3 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-400 cursor-not-allowed">
+                              <Calendar className="w-3.5 h-3.5 text-[#4F46E5]" />
+                              <span>{field.placeholder || 'YYYY-MM-DD (Date Input)'}</span>
+                            </div>
                           )}
 
                           {field.type === 'textarea' && (

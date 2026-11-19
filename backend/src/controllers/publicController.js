@@ -1,3 +1,5 @@
+const fs = require('fs');
+const path = require('path');
 const { Form, FormField, FormResponse } = require('../models');
 
 // GET /api/public/forms/:slug - Fetch a published form for respondents
@@ -59,6 +61,112 @@ const getPublicFormBySlug = async (req, res) => {
   }
 };
 
+// POST /api/public/forms/:slug/upload - Upload an actual image or file for a field
+const uploadPublicFile = async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const { fieldId } = req.body || {};
+
+    if (!req.file) {
+      return res.status(400).json({
+        data: null,
+        message: 'No file was provided for upload',
+      });
+    }
+
+    const form = await Form.findOne({
+      where: {
+        slug: slug.trim(),
+        status: 'published',
+      },
+    });
+
+    if (!form) {
+      if (req.file.path && fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+      return res.status(404).json({
+        data: null,
+        message: 'Form not found or is currently unpublished.',
+      });
+    }
+
+    let field = null;
+    if (fieldId) {
+      field = await FormField.findOne({
+        where: {
+          id: fieldId,
+          formId: form.id,
+        },
+      });
+    }
+
+    const file = req.file;
+    const originalName = file.originalname || '';
+    const ext = originalName.split('.').pop().toLowerCase();
+    const isImage =
+      ['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg'].includes(ext) ||
+      (file.mimetype && file.mimetype.toLowerCase().startsWith('image/'));
+
+    // Validate against configured field options if field is specified
+    if (field && field.options) {
+      const allowedExts = field.options.allowedExtensions || [];
+      const maxMB = field.options.maxFileSizeMB;
+
+      if (Array.isArray(allowedExts) && allowedExts.length > 0) {
+        const lowerAllowed = allowedExts.map((e) => String(e).toLowerCase().replace(/^\./, ''));
+        if (!lowerAllowed.includes(ext)) {
+          if (file.path && fs.existsSync(file.path)) {
+            fs.unlinkSync(file.path);
+          }
+          return res.status(400).json({
+            data: null,
+            message: `File extension .${ext} is not permitted for "${field.label}". Allowed: ${allowedExts.join(', ')}.`,
+          });
+        }
+      }
+
+      if (maxMB && file.size > maxMB * 1024 * 1024) {
+        if (file.path && fs.existsSync(file.path)) {
+          fs.unlinkSync(file.path);
+        }
+        return res.status(400).json({
+          data: null,
+          message: `File size exceeds the maximum limit of ${maxMB} MB.`,
+        });
+      }
+    }
+
+    // Return stored file path & relative URL (accessible via static uploads route)
+    const filePayload = {
+      fileName: file.originalname,
+      originalName: file.originalname,
+      storedName: file.filename,
+      path: `/uploads/${file.filename}`,
+      url: `/uploads/${file.filename}`,
+      size: file.size,
+      mimetype: file.mimetype,
+      isImage,
+    };
+
+    return res.status(200).json({
+      data: filePayload,
+      message: `${isImage ? 'Image' : 'File'} uploaded and saved successfully`,
+    });
+  } catch (error) {
+    if (req.file?.path && fs.existsSync(req.file.path)) {
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch (e) {}
+    }
+    console.error('Error uploading public file:', error);
+    return res.status(500).json({
+      data: null,
+      message: 'An error occurred while uploading the file.',
+    });
+  }
+};
+
 // POST /api/public/forms/:slug/submit - Submit answers to a published form
 const submitPublicForm = async (req, res) => {
   try {
@@ -102,8 +210,42 @@ const submitPublicForm = async (req, res) => {
       ],
     });
 
-    const { answers } = req.body || {};
-    const submittedAnswers = answers && typeof answers === 'object' ? answers : {};
+    // Parse submitted answers (handle JSON body or multipart form fields)
+    let submittedAnswers = {};
+    if (req.body?.answers) {
+      if (typeof req.body.answers === 'string') {
+        try {
+          submittedAnswers = JSON.parse(req.body.answers);
+        } catch (e) {
+          submittedAnswers = {};
+        }
+      } else if (typeof req.body.answers === 'object') {
+        submittedAnswers = { ...req.body.answers };
+      }
+    }
+
+    // If files were directly included in a multipart submission:
+    if (Array.isArray(req.files) && req.files.length > 0) {
+      req.files.forEach((file) => {
+        const match = file.fieldname.match(/^(?:field_|file_)?(\d+)$/);
+        const fieldId = match ? match[1] : file.fieldname;
+        const ext = (file.originalname || '').split('.').pop().toLowerCase();
+        const isImage =
+          ['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg'].includes(ext) ||
+          (file.mimetype && file.mimetype.toLowerCase().startsWith('image/'));
+
+        submittedAnswers[fieldId] = {
+          fileName: file.originalname,
+          originalName: file.originalname,
+          storedName: file.filename,
+          path: `/uploads/${file.filename}`,
+          url: `/uploads/${file.filename}`,
+          size: file.size,
+          mimetype: file.mimetype,
+          isImage,
+        };
+      });
+    }
 
     // 4. Validate submitted field IDs and ensure they belong to this form
     const validFieldMap = new Map();
@@ -126,9 +268,10 @@ const submitPublicForm = async (req, res) => {
 
     for (const field of fields) {
       const fieldKey = String(field.id);
-      const rawVal = submittedAnswers[fieldKey] !== undefined
-        ? submittedAnswers[fieldKey]
-        : submittedAnswers[field.id];
+      const rawVal =
+        submittedAnswers[fieldKey] !== undefined
+          ? submittedAnswers[fieldKey]
+          : submittedAnswers[field.id];
 
       const isMissing =
         rawVal === undefined ||
@@ -178,6 +321,18 @@ const submitPublicForm = async (req, res) => {
           break;
         }
 
+        case 'date': {
+          const strVal = String(val).trim();
+          const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+          const parsed = new Date(strVal);
+          if (!dateRegex.test(strVal) && isNaN(parsed.getTime())) {
+            errors[field.id] = `Please enter a valid date (YYYY-MM-DD) for "${field.label}".`;
+          } else {
+            sanitizedAnswers[field.id] = strVal;
+          }
+          break;
+        }
+
         case 'select':
         case 'radio': {
           const strVal = String(val).trim();
@@ -208,14 +363,19 @@ const submitPublicForm = async (req, res) => {
         }
 
         case 'file': {
-          const fileName = typeof val === 'object' && val !== null ? val.name : String(val).trim();
+          let fileMeta = val;
+          const fileName =
+            typeof val === 'object' && val !== null
+              ? val.fileName || val.originalName || val.name
+              : String(val).trim();
+
           const fileOpts = field.options || {};
           const allowedExts = fileOpts.allowedExtensions || [];
           const maxMB = fileOpts.maxFileSizeMB;
 
           if (fileName && Array.isArray(allowedExts) && allowedExts.length > 0) {
             const ext = fileName.split('.').pop().toLowerCase();
-            const lowerAllowed = allowedExts.map((e) => e.toLowerCase().replace(/^\./, ''));
+            const lowerAllowed = allowedExts.map((e) => String(e).toLowerCase().replace(/^\./, ''));
             if (!lowerAllowed.includes(ext)) {
               errors[field.id] = `File extension .${ext} is not permitted for "${field.label}". Allowed: ${allowedExts.join(', ')}.`;
             }
@@ -228,7 +388,20 @@ const submitPublicForm = async (req, res) => {
             }
           }
 
-          sanitizedAnswers[field.id] = val;
+          // Ensure isImage is accurately flagged
+          if (typeof val === 'object' && val !== null) {
+            const ext = (fileName || '').split('.').pop().toLowerCase();
+            const isImage =
+              ['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg'].includes(ext) ||
+              (val.mimetype && val.mimetype.toLowerCase().startsWith('image/'));
+
+            fileMeta = {
+              ...val,
+              isImage: isImage || Boolean(val.isImage),
+            };
+          }
+
+          sanitizedAnswers[field.id] = fileMeta;
           break;
         }
 
@@ -245,7 +418,7 @@ const submitPublicForm = async (req, res) => {
       });
     }
 
-    // 6. Save response in database
+    // 6. Save response in database (saving JSON answers, NOT binary data)
     const formResponse = await FormResponse.create({
       formId: form.id,
       answers: sanitizedAnswers,
@@ -271,5 +444,6 @@ const submitPublicForm = async (req, res) => {
 
 module.exports = {
   getPublicFormBySlug,
+  uploadPublicFile,
   submitPublicForm,
 };

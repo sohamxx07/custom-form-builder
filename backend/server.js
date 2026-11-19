@@ -1,4 +1,3 @@
-
 const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '.env') });
 
@@ -15,12 +14,12 @@ async function startServer() {
     await sequelize.authenticate();
     console.log('[Database] SQLite connection established successfully.');
 
-    // Ensure database columns exist
-    await runMigration();
-
     // Create database tables if they do not exist
     await sequelize.sync();
     console.log('[Database] All models synchronized successfully.');
+
+    // Ensure database columns exist for existing tables
+    await runMigration();
 
     // Start Express HTTP server
     const server = app.listen(PORT, () => {

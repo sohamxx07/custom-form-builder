@@ -227,6 +227,13 @@ const testSubmit = async (req, res) => {
           if (isNaN(Number(val))) {
             errors[field.id] = 'Please enter a valid numeric value.';
           }
+        } else if (field.type === 'date') {
+          const strVal = String(val).trim();
+          const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+          const parsed = new Date(strVal);
+          if (!dateRegex.test(strVal) && isNaN(parsed.getTime())) {
+            errors[field.id] = `Please enter a valid date for "${field.label}".`;
+          }
         }
       }
     }
