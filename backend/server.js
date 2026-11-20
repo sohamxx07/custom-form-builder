@@ -12,7 +12,7 @@ async function startServer() {
   try {
     // Authenticate and test the database connection
     await sequelize.authenticate();
-    console.log('[Database] SQLite connection established successfully.');
+    console.log(`[Database] ${sequelize.getDialect().toUpperCase()} connection established successfully.`);
 
     // Create database tables if they do not exist
     await sequelize.sync();
@@ -21,7 +21,7 @@ async function startServer() {
     // Ensure database columns exist for existing tables
     await runMigration();
 
-    // Start Express HTTP server
+    // Start Express HTTP server (listen on PORT if not managed by Vercel serverless)
     const server = app.listen(PORT, () => {
       console.log(`[Server] Server listening on port ${PORT} (http://localhost:${PORT})`);
       console.log(`[Server] Health check: http://localhost:${PORT}/api/health`);
@@ -29,13 +29,19 @@ async function startServer() {
 
     server.on('error', (err) => {
       console.error('[Server] HTTP server error:', err.message);
-      process.exit(1);
+      if (!process.env.VERCEL) {
+        process.exit(1);
+      }
     });
   } catch (error) {
-    console.error('[Database] Unable to connect or synchronize SQLite database:');
+    console.error('[Database] Unable to connect or synchronize database:');
     console.error(error.message);
-    process.exit(1);
+    if (!process.env.VERCEL) {
+      process.exit(1);
+    }
   }
 }
 
 startServer();
+
+module.exports = app;

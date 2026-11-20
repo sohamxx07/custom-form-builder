@@ -2,6 +2,11 @@ const sequelize = require('./db');
 
 async function runMigration() {
   try {
+    // If running against MySQL or another relational database, sequelize.sync() handles table definitions
+    if (sequelize.getDialect() !== 'sqlite') {
+      return true;
+    }
+
     // 1. Check if the 'forms' table exists in SQLite
     const [tables] = await sequelize.query(
       "SELECT name FROM sqlite_master WHERE type='table' AND name='forms';"

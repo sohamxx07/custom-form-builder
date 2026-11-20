@@ -107,11 +107,12 @@ const Responses = () => {
         val.mimetype?.toLowerCase().startsWith('image/') ||
         ['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg'].includes(ext)
       );
+      const apiBase = import.meta.env.VITE_BACKEND_URL || '';
       const rawUrl = val.url || val.path || '';
       const url = rawUrl
         ? rawUrl.startsWith('http')
           ? rawUrl
-          : `http://localhost:5000${rawUrl.startsWith('/') ? rawUrl : '/' + rawUrl}`
+          : `${apiBase}${rawUrl.startsWith('/') ? rawUrl : '/' + rawUrl}`
         : '';
       return {
         fileName,
@@ -123,6 +124,7 @@ const Responses = () => {
     }
 
     if (typeof val === 'string') {
+      const apiBase = import.meta.env.VITE_BACKEND_URL || '';
       const trimmed = val.trim();
       const ext = trimmed.split('.').pop()?.toLowerCase();
       const isImage = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg'].includes(ext);
@@ -130,9 +132,9 @@ const Responses = () => {
       if (trimmed.startsWith('http')) {
         url = trimmed;
       } else if (trimmed.startsWith('/uploads/')) {
-        url = `http://localhost:5000${trimmed}`;
+        url = `${apiBase}${trimmed}`;
       } else if (isImage) {
-        url = `http://localhost:5000/uploads/${trimmed}`;
+        url = `${apiBase}/uploads/${trimmed}`;
       }
       return {
         fileName: trimmed.split('/').pop(),

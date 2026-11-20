@@ -203,12 +203,15 @@ const PublicForm = () => {
   // Helper to get image preview url
   const getFilePreviewUrl = (val) => {
     if (!val) return '';
+    const apiBase = import.meta.env.VITE_BACKEND_URL || '';
     if (typeof val === 'object' && val.url) {
-      return val.url.startsWith('http') ? val.url : `http://localhost:5000${val.url.startsWith('/') ? val.url : '/' + val.url}`;
+      if (val.url.startsWith('http')) return val.url;
+      const cleanPath = val.url.startsWith('/') ? val.url : '/' + val.url;
+      return `${apiBase}${cleanPath}`;
     }
     if (typeof val === 'string') {
       if (val.startsWith('http')) return val;
-      if (val.startsWith('/uploads/')) return `http://localhost:5000${val}`;
+      if (val.startsWith('/uploads/')) return `${apiBase}${val}`;
     }
     return '';
   };
