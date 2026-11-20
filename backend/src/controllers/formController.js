@@ -120,6 +120,17 @@ const updateForm = async (req, res) => {
       form.description = description ? description.trim() : null;
     }
 
+    if (req.body.theme !== undefined && typeof req.body.theme === 'object') {
+      const incomingTheme = req.body.theme;
+      form.theme = incomingTheme ? {
+        ...incomingTheme,
+        headerImage:
+          incomingTheme.headerImage && typeof incomingTheme.headerImage === 'object' && !String(incomingTheme.headerImage.url || '').startsWith('blob:')
+            ? incomingTheme.headerImage
+            : null,
+      } : null;
+    }
+
     await form.save();
 
     return res.status(200).json({
@@ -323,6 +334,73 @@ const publishForm = async (req, res) => {
   }
 };
 
+// PUT /api/forms/:id/theme - Save/update theme configuration for a form
+const updateFormTheme = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const form = await Form.findOne({
+      where: {
+        id,
+        userId: req.user.id,
+      },
+    });
+
+    if (!form) {
+      return res.status(404).json({
+        data: null,
+        message: 'Form not found',
+      });
+    }
+
+    const { theme } = req.body;
+
+    if (!theme || typeof theme !== 'object') {
+      return res.status(400).json({
+        data: null,
+        message: 'A valid theme configuration object is required',
+      });
+    }
+
+    // Sanitize theme: ensure only valid schema keys are saved and prevent saving temporary blob URLs
+    const sanitizedTheme = {
+      preset: typeof theme.preset === 'string' ? theme.preset.trim() : 'custom',
+      primaryColor: typeof theme.primaryColor === 'string' ? theme.primaryColor.trim() : '#2563EB',
+      backgroundColor: typeof theme.backgroundColor === 'string' ? theme.backgroundColor.trim() : '#F8FAFC',
+      cardColor: typeof theme.cardColor === 'string' ? theme.cardColor.trim() : '#FFFFFF',
+      textColor: typeof theme.textColor === 'string' ? theme.textColor.trim() : '#0F172A',
+      fontFamily: typeof theme.fontFamily === 'string' ? theme.fontFamily.trim() : "'Inter', sans-serif",
+      headerFontSize: typeof theme.headerFontSize === 'string' ? theme.headerFontSize.trim() : '28px',
+      questionFontSize: typeof theme.questionFontSize === 'string' ? theme.questionFontSize.trim() : '14px',
+      descriptionFontSize: typeof theme.descriptionFontSize === 'string' ? theme.descriptionFontSize.trim() : '13px',
+      cardRadius: typeof theme.cardRadius === 'string' ? theme.cardRadius.trim() : (theme.borderRadius || '12px'),
+      cardShadow: typeof theme.cardShadow === 'string' ? theme.cardShadow.trim() : (theme.shadow || 'sm'),
+      buttonStyle: typeof theme.buttonStyle === 'string' ? theme.buttonStyle.trim() : 'solid',
+      // Header Image Rule: Do not save temporary blob URLs as permanent image references
+      headerImage:
+        theme.headerImage && typeof theme.headerImage === 'object' && !String(theme.headerImage.url || '').startsWith('blob:')
+          ? theme.headerImage
+          : null,
+    };
+
+    form.theme = sanitizedTheme;
+    await form.save();
+
+    return res.status(200).json({
+      data: {
+        id: form.id,
+        theme: form.theme,
+      },
+      message: 'Theme saved successfully',
+    });
+  } catch (error) {
+    console.error('Update form theme error:', error);
+    return res.status(500).json({
+      data: null,
+      message: 'An error occurred while saving the theme',
+    });
+  }
+};
+
 module.exports = {
   createForm,
   getAllForms,
@@ -331,4 +409,5 @@ module.exports = {
   deleteForm,
   testSubmit,
   publishForm,
+  updateFormTheme,
 };

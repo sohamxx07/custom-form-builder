@@ -19,4 +19,7 @@ router.post('/:id/test-submit', formController.testSubmit);
 // Publish form endpoint
 router.post('/:id/publish', formController.publishForm);
 
+// Save / update theme configuration endpoint
+router.put('/:id/theme', formController.updateFormTheme);
+
 module.exports = router;

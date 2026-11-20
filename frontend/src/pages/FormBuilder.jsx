@@ -44,7 +44,13 @@ import {
   CheckSquare,
   Radio,
   Calendar,
+  CalendarDays,
+  UserRound,
+  MapPin,
+  Upload,
+  Palette,
 } from 'lucide-react';
+import { getFieldIconComponent, detectFieldIcon, AVAILABLE_FIELD_ICONS } from '../lib/fieldIcons';
 
 const SUPPORTED_FIELD_TYPES = [
   { value: 'text', label: 'Single-line Text', icon: Type, desc: 'Short text' },
@@ -94,6 +100,7 @@ const FormBuilder = () => {
   // File Upload Specific Configuration State
   const [allowedExtensions, setAllowedExtensions] = useState(['PDF', 'JPG', 'PNG']);
   const [maxFileSizeMB, setMaxFileSizeMB] = useState(5);
+  const [customIcon, setCustomIcon] = useState('auto');
 
   const [submittingField, setSubmittingField] = useState(false);
   const [fieldError, setFieldError] = useState('');
@@ -175,6 +182,7 @@ const FormBuilder = () => {
     setOptions(['Option 1', 'Option 2']);
     setAllowedExtensions(['PDF', 'JPG', 'PNG']);
     setMaxFileSizeMB(5);
+    setCustomIcon('auto');
     setSortOrder(fields.length);
     setFieldError('');
   };
@@ -187,6 +195,7 @@ const FormBuilder = () => {
     setPlaceholder(field.placeholder || '');
     setRequired(Boolean(field.required));
     setSortOrder(field.sortOrder ?? 0);
+    setCustomIcon(field.options?.icon || field.icon || 'auto');
     setFieldError('');
 
     if (field.type === 'file' && field.options && typeof field.options === 'object') {
@@ -272,6 +281,7 @@ const FormBuilder = () => {
       fieldOptions = {
         allowedExtensions: allowedExtensions.map((e) => e.toLowerCase()),
         maxFileSizeMB: size,
+        icon: customIcon !== 'auto' ? customIcon : undefined,
       };
     } else if (CHOICE_TYPES.includes(type)) {
       fieldOptions = options.map((opt) => opt.trim()).filter(Boolean);
@@ -279,6 +289,8 @@ const FormBuilder = () => {
         setFieldError('Please provide at least one valid option.');
         return;
       }
+    } else if (customIcon !== 'auto') {
+      fieldOptions = { icon: customIcon };
     }
 
     const payload = {
@@ -355,6 +367,12 @@ const FormBuilder = () => {
               <Button variant="outline" size="sm" className="font-medium bg-white">
                 <BarChart3 className="h-4 w-4 mr-1.5 text-indigo-600" />
                 Responses
+              </Button>
+            </Link>
+            <Link to={`/forms/${formId}/preview`}>
+              <Button variant="outline" size="sm" className="font-medium bg-white text-indigo-700 border-indigo-200 hover:bg-indigo-50">
+                <Palette className="h-4 w-4 mr-1.5 text-indigo-600" />
+                Customize Theme
               </Button>
             </Link>
             <Link to={`/forms/${formId}/preview`}>
@@ -563,6 +581,43 @@ const FormBuilder = () => {
                       required
                       className="h-9 rounded-xl text-sm"
                     />
+                  </div>
+
+                  {/* Field Label Icon Selector */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="field-icon-select" className="text-xs font-semibold text-gray-800 flex items-center gap-1.5">
+                        <span>Label Icon</span>
+                        {/* Live icon preview badge */}
+                        {(() => {
+                          const IconComp = getFieldIconComponent({
+                            label,
+                            type,
+                            options: { icon: customIcon },
+                          });
+                          if (!IconComp) return <span className="text-[10px] text-gray-400 font-normal">(No icon)</span>;
+                          return (
+                            <span className="inline-flex items-center justify-center w-5 h-5 rounded-md bg-indigo-50 text-indigo-600">
+                              <IconComp className="w-3.5 h-3.5" />
+                            </span>
+                          );
+                        })()}
+                      </Label>
+                      <span className="text-[10px] text-gray-400">Auto-suggests from title</span>
+                    </div>
+
+                    <Select
+                      id="field-icon-select"
+                      value={customIcon}
+                      onChange={(e) => setCustomIcon(e.target.value)}
+                      className="h-9 rounded-xl text-xs bg-white border-slate-200"
+                    >
+                      {AVAILABLE_FIELD_ICONS.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.label}
+                        </option>
+                      ))}
+                    </Select>
                   </div>
 
                   {/* Field Type Select - Visual Interactive Grid */}
@@ -863,18 +918,37 @@ const FormBuilder = () => {
                       </CardHeader>
 
                       <CardContent className="p-4 sm:p-5 pt-3">
-                        <p className="text-sm font-bold text-gray-900 mb-2">
-                          {field.label}
-                          {field.required && <span className="text-red-500 ml-1">*</span>}
-                        </p>
+                        {/* Field Label with Icon Badge */}
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center space-x-2.5">
+                            {(() => {
+                              const FieldIconComp = getFieldIconComponent(field);
+                              if (!FieldIconComp) return null;
+                              return (
+                                <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 shadow-2xs border border-indigo-100/60">
+                                  <FieldIconComp className="w-3.5 h-3.5" />
+                                </span>
+                              );
+                            })()}
+                            <p className="text-sm font-bold text-slate-900">
+                              {field.label}
+                              {field.required && <span className="text-red-500 ml-1">*</span>}
+                            </p>
+                          </div>
+                          {field.required && (
+                            <span className="text-[10px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-100">
+                              Required
+                            </span>
+                          )}
+                        </div>
 
                         {/* Visual field preview */}
-                        <div className="bg-slate-50/80 p-3.5 rounded-xl border border-gray-200/80">
+                        <div className="bg-slate-50/70 p-3.5 rounded-xl border border-slate-200/70">
                           {field.type === 'text' && (
                             <Input
                               disabled
                               placeholder={field.placeholder || 'Text input'}
-                              className="h-8 text-xs bg-white text-gray-400 cursor-not-allowed"
+                              className="h-9 text-xs bg-white text-slate-400 cursor-not-allowed rounded-lg border-slate-200"
                             />
                           )}
 
@@ -882,7 +956,7 @@ const FormBuilder = () => {
                             <Input
                               disabled
                               placeholder={field.placeholder || 'name@example.com'}
-                              className="h-8 text-xs bg-white text-gray-400 cursor-not-allowed"
+                              className="h-9 text-xs bg-white text-slate-400 cursor-not-allowed rounded-lg border-slate-200"
                             />
                           )}
 
@@ -890,13 +964,13 @@ const FormBuilder = () => {
                             <Input
                               disabled
                               placeholder={field.placeholder || '0'}
-                              className="h-8 text-xs bg-white text-gray-400 cursor-not-allowed"
+                              className="h-9 text-xs bg-white text-slate-400 cursor-not-allowed rounded-lg border-slate-200"
                             />
                           )}
 
                           {field.type === 'date' && (
-                            <div className="flex items-center space-x-2 bg-white px-3 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-400 cursor-not-allowed">
-                              <Calendar className="w-3.5 h-3.5 text-[#4F46E5]" />
+                            <div className="flex items-center space-x-2 bg-white px-3 py-2 rounded-lg border border-slate-200 text-xs text-slate-400 cursor-not-allowed">
+                              <CalendarDays className="w-4 h-4 text-indigo-600" />
                               <span>{field.placeholder || 'YYYY-MM-DD (Date Input)'}</span>
                             </div>
                           )}
@@ -906,12 +980,12 @@ const FormBuilder = () => {
                               disabled
                               rows={2}
                               placeholder={field.placeholder || 'Multi-line answer...'}
-                              className="text-xs bg-white text-gray-400 cursor-not-allowed"
+                              className="text-xs bg-white text-slate-400 cursor-not-allowed rounded-lg border-slate-200"
                             />
                           )}
 
                           {field.type === 'select' && (
-                            <Select disabled className="h-8 text-xs bg-white text-gray-400 cursor-not-allowed">
+                            <Select disabled className="h-9 text-xs bg-white text-slate-400 cursor-not-allowed rounded-lg border-slate-200">
                               <option>-- Select an option --</option>
                               {Array.isArray(field.options) &&
                                 field.options.map((opt, i) => (
@@ -924,8 +998,13 @@ const FormBuilder = () => {
                             <div className="space-y-1.5">
                               {Array.isArray(field.options) &&
                                 field.options.map((opt, i) => (
-                                  <div key={i} className="flex items-center space-x-2 text-xs text-gray-500">
-                                    <div className="h-3.5 w-3.5 rounded-full border border-gray-300" />
+                                  <div
+                                    key={i}
+                                    className="flex items-center space-x-2.5 p-2 rounded-lg border border-slate-200/80 bg-white text-xs text-slate-600"
+                                  >
+                                    <div className="h-3.5 w-3.5 rounded-full border border-slate-300 flex items-center justify-center">
+                                      {i === 0 && <span className="h-1.5 w-1.5 rounded-full bg-indigo-600" />}
+                                    </div>
                                     <span>{opt}</span>
                                   </div>
                                 ))}
@@ -936,8 +1015,13 @@ const FormBuilder = () => {
                             <div className="space-y-1.5">
                               {Array.isArray(field.options) &&
                                 field.options.map((opt, i) => (
-                                  <div key={i} className="flex items-center space-x-2 text-xs text-gray-500">
-                                    <div className="h-3.5 w-3.5 rounded border border-gray-300" />
+                                  <div
+                                    key={i}
+                                    className="flex items-center space-x-2.5 p-2 rounded-lg border border-slate-200/80 bg-white text-xs text-slate-600"
+                                  >
+                                    <div className="h-3.5 w-3.5 rounded border border-slate-300 flex items-center justify-center">
+                                      {i === 0 && <Check className="h-2.5 w-2.5 text-indigo-600" />}
+                                    </div>
                                     <span>{opt}</span>
                                   </div>
                                 ))}
@@ -945,10 +1029,13 @@ const FormBuilder = () => {
                           )}
 
                           {field.type === 'file' && (
-                            <div className="border border-dashed border-gray-300 rounded-lg p-3 text-center bg-white">
-                              <FileUp className="h-5 w-5 text-gray-400 mx-auto mb-1" />
-                              <p className="text-[11px] text-gray-500 font-medium">
-                                Allowed: {field.options?.allowedExtensions?.join(', ') || 'All'} • Max:{' '}
+                            <div className="border border-dashed border-indigo-200 rounded-xl p-3.5 text-center bg-indigo-50/30">
+                              <Upload className="h-5 w-5 text-indigo-500 mx-auto mb-1.5" />
+                              <p className="text-xs text-slate-700 font-medium">
+                                Drag & drop or upload files
+                              </p>
+                              <p className="text-[10px] text-slate-400 mt-0.5">
+                                Allowed: {(field.options?.allowedExtensions || ['PDF', 'JPG', 'PNG']).join(', ').toUpperCase()} • Max:{' '}
                                 {field.options?.maxFileSizeMB || 5} MB
                               </p>
                             </div>

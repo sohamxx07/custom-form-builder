@@ -20,7 +20,7 @@ const getPublicFormBySlug = async (req, res) => {
         slug: slug.trim(),
         status: 'published',
       },
-      attributes: ['id', 'title', 'description', 'slug', 'publishedAt'],
+      attributes: ['id', 'title', 'description', 'slug', 'publishedAt', 'theme'],
     });
 
     if (!form) {
@@ -48,6 +48,7 @@ const getPublicFormBySlug = async (req, res) => {
         description: form.description,
         slug: form.slug,
         publishedAt: form.publishedAt,
+        theme: form.theme || null,
         fields,
       },
       message: 'Public form fetched successfully',

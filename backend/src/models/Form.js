@@ -40,10 +40,35 @@ const Form = sequelize.define('Form', {
     type: DataTypes.DATE,
     allowNull: true,
   },
+  theme: {
+    type: DataTypes.JSON,
+    allowNull: true,
+    defaultValue: null,
+    get() {
+      const rawValue = this.getDataValue('theme');
+      if (!rawValue) return null;
+      if (typeof rawValue === 'object') return rawValue;
+      try {
+        return JSON.parse(rawValue);
+      } catch (e) {
+        return rawValue;
+      }
+    },
+  },
 }, {
   tableName: 'forms',
   timestamps: true,
 });
+
+Form.prototype.toJSON = function () {
+  const values = { ...this.get() };
+  if (typeof values.theme === 'string') {
+    try {
+      values.theme = JSON.parse(values.theme);
+    } catch (e) {}
+  }
+  return values;
+};
 
 Form.associate = (models) => {
   Form.belongsTo(models.User, { foreignKey: 'userId', as: 'user' });

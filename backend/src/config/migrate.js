@@ -33,6 +33,10 @@ async function runMigration() {
       await sequelize.query("ALTER TABLE forms ADD COLUMN publishedAt DATETIME;");
       console.log('[Migration] Added "publishedAt" column to forms table.');
     }
+    if (!names.includes('theme')) {
+      await sequelize.query("ALTER TABLE forms ADD COLUMN theme TEXT;");
+      console.log('[Migration] Added "theme" column to forms table.');
+    }
 
     // 3. Ensure form_responses table exists
     await sequelize.query(`
